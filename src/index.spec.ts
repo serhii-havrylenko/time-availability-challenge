@@ -9,6 +9,16 @@ describe('src/index', () => {
       space = await import('../fixtures/space-with-no-advance-notice.json');
     });
 
+    it('should return empty list if numberOfDays is 0', () => {
+      const availability = fetchAvailability(
+        space,
+        0,
+        new Date(Date.UTC(2020, 8, 7, 15, 22)),
+      );
+
+      expect(availability).toStrictEqual({});
+    });
+
     it('should fetch availability for a space after the space has already opened', () => {
       const availability = fetchAvailability(
         space,
@@ -271,11 +281,11 @@ describe('src/index', () => {
       });
     });
 
-    it.skip('should fetch the space availability for the third day', () => {
+    it('should fetch the space availability for the third day', () => {
       const availability = fetchAvailability(
         space,
         3,
-        new Date(Date.UTC(2022, 4, 10, 10, 22)),
+        new Date(Date.UTC(2022, 4, 10, 5, 1)),
       );
 
       expect(availability).toStrictEqual({
@@ -283,12 +293,45 @@ describe('src/index', () => {
         '2022-05-11': {},
         '2022-05-12': {
           open: {
-            hour: 9,
-            minute: 48,
+            hour: 7,
+            minute: 20,
           },
           close: {
             hour: 18,
             minute: 0,
+          },
+        },
+      });
+    });
+
+    it('should fetch the space availability for four days when the space has already opened', () => {
+      const availability = fetchAvailability(
+        space,
+        4,
+        new Date(Date.UTC(2022, 4, 10, 8, 22)),
+      );
+
+      expect(availability).toStrictEqual({
+        '2022-05-10': {},
+        '2022-05-11': {},
+        '2022-05-12': {
+          open: {
+            hour: 10,
+            minute: 30,
+          },
+          close: {
+            hour: 18,
+            minute: 0,
+          },
+        },
+        '2022-05-13': {
+          open: {
+            hour: 9,
+            minute: 48,
+          },
+          close: {
+            hour: 17,
+            minute: 15,
           },
         },
       });
