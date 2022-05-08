@@ -2,6 +2,7 @@ import {
   addDays,
   addMinutes,
   differenceInMilliseconds,
+  differenceInMinutes,
   format,
   setHours,
   setMinutes,
@@ -16,6 +17,71 @@ const getDayOfWeek = (date: Date): number => date.getDay() || 7;
 // According to "Must return available times in increments of 15 minutes."
 // the open hours for Today are rounded to 15 minutes interval
 const ROUND_TO_MINUTES = 15;
+
+// If an Hour or Minute property is not set in the availability object, assume that:
+// - open: hour and minutes is 00:00
+// - close: hour and minutes is 23:59
+const calculateToday = (space: Space, now: Date): OpeningTimes => {
+  const currentDay = getDayOfWeek(now);
+
+  if (
+    !space.openingTimes[currentDay]?.open ||
+    !space.openingTimes[currentDay]?.close
+  ) {
+    return {};
+  }
+
+  const openDateWithTZOffset = zonedTimeToUtc(
+    setMinutes(
+      setHours(now, space.openingTimes[currentDay].open?.hour ?? 0),
+      space.openingTimes[currentDay].open?.minute ?? 0,
+    ),
+    space.timeZone,
+  );
+  const closeDateWithTZOffset = zonedTimeToUtc(
+    setMinutes(
+      setHours(now, space.openingTimes[currentDay].close?.hour ?? 23),
+      space.openingTimes[currentDay].close?.minute ?? 59,
+    ),
+    space.timeZone,
+  );
+
+  const nowWithNotice = addMinutes(now, space.minimumNotice);
+  const diffInNowAndOpen = differenceInMinutes(
+    openDateWithTZOffset,
+    nowWithNotice,
+  );
+
+  let nearestOpenTimeRounded: Date = openDateWithTZOffset;
+  if (diffInNowAndOpen > 0) {
+    nearestOpenTimeRounded = openDateWithTZOffset;
+  } else {
+    nearestOpenTimeRounded = addMinutes(
+      nowWithNotice,
+      ROUND_TO_MINUTES - (nowWithNotice.getMinutes() % ROUND_TO_MINUTES || 15),
+    );
+  }
+
+  if (differenceInMinutes(nearestOpenTimeRounded, closeDateWithTZOffset) >= 0) {
+    // if the nearest open time is bigger than close time then do not set it as available
+    return {};
+  }
+
+  const nearestOpenTimeInTZ = utcToZonedTime(
+    nearestOpenTimeRounded,
+    space.timeZone,
+  );
+
+  return {
+    open: {
+      hour: nearestOpenTimeInTZ.getHours(),
+      minute: nearestOpenTimeInTZ.getMinutes(),
+    },
+    close: space.openingTimes[currentDay].close,
+  };
+};
+
+const formatDateIndex = (date: Date): string => format(date, 'yyyy-MM-dd');
 
 /**
  * Fetches upcoming availability for a space
@@ -34,65 +100,10 @@ export const fetchAvailability = (
 
   const currentDay = getDayOfWeek(now);
 
-  const weekDayToOpeningTimeMap: Record<number, OpeningTimes> = {};
+  const weekDayToOpeningTimeMap: Record<number, OpeningTimes> = {
+    0: calculateToday(space, now),
+  };
 
-  // calculate TODAY
-  if (space.openingTimes[currentDay]) {
-    // FIXME: open time is optional
-    // FIXME: handle situations when (open || current)+noticeTime < close
-    const openDateWithTZOffset = zonedTimeToUtc(
-      setMinutes(
-        setHours(now, space.openingTimes[currentDay].open?.hour || 0),
-        space.openingTimes[currentDay].open?.minute || 0,
-      ),
-      space.timeZone,
-    );
-    const biggerDate =
-      differenceInMilliseconds(openDateWithTZOffset, now) > 0
-        ? openDateWithTZOffset
-        : now;
-
-    const nearestOpenTime = addMinutes(biggerDate, space.minimumNotice);
-
-    const nearestOpenTimeRounded = addMinutes(
-      nearestOpenTime,
-      ROUND_TO_MINUTES -
-        (nearestOpenTime.getMinutes() % ROUND_TO_MINUTES || 15),
-    );
-
-    const nearestOpenTimeInTZ = utcToZonedTime(
-      nearestOpenTimeRounded,
-      space.timeZone,
-    );
-
-    const closeDateWithTZOffset = zonedTimeToUtc(
-      setMinutes(
-        setHours(now, space.openingTimes[currentDay].close?.hour || 0),
-        space.openingTimes[currentDay].close?.minute || 0,
-      ),
-      space.timeZone,
-    );
-
-    if (
-      differenceInMilliseconds(nearestOpenTimeRounded, closeDateWithTZOffset) >=
-      0
-    ) {
-      // if the nearest open time is bigger than close time then do not set it as available
-      weekDayToOpeningTimeMap[0] = {};
-    } else {
-      weekDayToOpeningTimeMap[0] = {
-        open: {
-          hour: nearestOpenTimeInTZ.getHours(),
-          minute: nearestOpenTimeInTZ.getMinutes(),
-        },
-        close: space.openingTimes[currentDay].close,
-      };
-    }
-  } else {
-    weekDayToOpeningTimeMap[0] = {};
-  }
-
-  // FIXME: avoid extra variables
   const calculateDates =
     numberOfDays >= 7 ? currentDay + 7 : currentDay + numberOfDays;
 
@@ -112,15 +123,17 @@ export const fetchAvailability = (
     }
   }
 
+  const nowWithNotice = addMinutes(now, space.minimumNotice);
+
   const result: AvailabilityCalendar = {
-    [format(now, 'yyyy-MM-dd')]: weekDayToOpeningTimeMap[0],
+    [formatDateIndex(now)]: weekDayToOpeningTimeMap[0],
   };
   for (let i = 1; i < numberOfDays; i++) {
     const availabilityDate = addDays(now, i);
-    const formattedDate = format(availabilityDate, 'yyyy-MM-dd');
     const dayOfTheWeek = getDayOfWeek(availabilityDate);
 
-    result[formattedDate] = weekDayToOpeningTimeMap[dayOfTheWeek];
+    result[formatDateIndex(availabilityDate)] =
+      weekDayToOpeningTimeMap[dayOfTheWeek];
   }
 
   return result;

@@ -63,6 +63,18 @@ describe('src/index', () => {
       });
     });
 
+    it('should return unavailable if open and close time is not set for today', () => {
+      const availability = fetchAvailability(
+        space,
+        1,
+        new Date(Date.UTC(2020, 8, 6, 15, 48)),
+      );
+
+      expect(availability).toStrictEqual({
+        '2020-09-06': {},
+      });
+    });
+
     it('should fetch availability for a space after the space has already opened for next 8 days', () => {
       const availability = fetchAvailability(
         space,
@@ -137,36 +149,78 @@ describe('src/index', () => {
     });
   });
 
-  describe('a space with advance notice and different opening time', () => {
+  describe('a space with advance notice in 30 minutes', () => {
     let space: Space;
     before(async () => {
       space = await import(
-        '../fixtures/space-with-15-minutes-advance-notice.json'
+        '../fixtures/space-with-30-minutes-advance-notice.json'
       );
     });
 
-    it('fetches availability for a space after the space has already opened', () => {
+    it('should fetch availability for a space after the space has not opened yet', () => {
       const availability = fetchAvailability(
         space,
         1,
-        new Date(Date.UTC(2022, 4, 10, 10, 22)),
+        new Date(Date.UTC(2022, 4, 10, 10, 28)),
       );
 
       expect(availability).toStrictEqual({
         '2022-05-10': {
           open: {
-            hour: 12,
-            minute: 45,
+            hour: 9,
+            minute: 0,
           },
           close: {
-            hour: 15,
+            hour: 17,
             minute: 0,
           },
         },
       });
     });
 
-    it('fetches availability a space for next 3 days when current date is set on weekend', () => {
+    it('should fetch availability for a space when the space will open in less then notice time', () => {
+      const availability = fetchAvailability(
+        space,
+        1,
+        new Date(Date.UTC(2022, 4, 10, 12, 33)),
+      );
+
+      expect(availability).toStrictEqual({
+        '2022-05-10': {
+          open: {
+            hour: 9,
+            minute: 15,
+          },
+          close: {
+            hour: 17,
+            minute: 0,
+          },
+        },
+      });
+    });
+
+    it('should fetch availability for a space after the space has already opened and round correctly', () => {
+      const availability = fetchAvailability(
+        space,
+        1,
+        new Date(Date.UTC(2022, 4, 10, 15, 33)),
+      );
+
+      expect(availability).toStrictEqual({
+        '2022-05-10': {
+          open: {
+            hour: 12,
+            minute: 15,
+          },
+          close: {
+            hour: 17,
+            minute: 0,
+          },
+        },
+      });
+    });
+
+    it('should fetch availability a space for next 3 days when current date is set on weekend', () => {
       const availability = fetchAvailability(
         space,
         3,
@@ -175,14 +229,65 @@ describe('src/index', () => {
 
       expect(availability).toStrictEqual({
         '2022-05-08': {},
-        '2022-05-09': {},
-        '2022-05-10': {
+        '2022-05-09': {
           open: {
-            hour: 7,
+            hour: 9,
             minute: 0,
           },
           close: {
-            hour: 15,
+            hour: 17,
+            minute: 0,
+          },
+        },
+        '2022-05-10': {
+          open: {
+            hour: 9,
+            minute: 0,
+          },
+          close: {
+            hour: 17,
+            minute: 0,
+          },
+        },
+      });
+    });
+  });
+
+  describe('a space with notice period in 2 days', () => {
+    let space: Space;
+    before(async () => {
+      space = await import('../fixtures/space-with-2-days-advance-notice.json');
+    });
+
+    it('should not show the space availability for today if notice is more than one day', () => {
+      const availability = fetchAvailability(
+        space,
+        1,
+        new Date(Date.UTC(2022, 4, 10, 10, 22)),
+      );
+
+      expect(availability).toStrictEqual({
+        '2022-05-10': {},
+      });
+    });
+
+    it.skip('should fetch the space availability for the third day', () => {
+      const availability = fetchAvailability(
+        space,
+        3,
+        new Date(Date.UTC(2022, 4, 10, 10, 22)),
+      );
+
+      expect(availability).toStrictEqual({
+        '2022-05-10': {},
+        '2022-05-11': {},
+        '2022-05-12': {
+          open: {
+            hour: 9,
+            minute: 48,
+          },
+          close: {
+            hour: 18,
             minute: 0,
           },
         },

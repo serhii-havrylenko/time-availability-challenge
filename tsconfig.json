@@ -8,6 +8,7 @@
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "strictNullChecks": true,
+    "strict": true,
     "target": "es2019",
     "sourceMap": true,
     "lib": ["es2019"],
