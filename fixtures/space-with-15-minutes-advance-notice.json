@@ -1,0 +1,56 @@
+{
+  "openingTimes": {
+    "2": {
+      "open": {
+        "hour": 7,
+        "minute": 0
+      },
+      "close": {
+        "hour": 15,
+        "minute": 0
+      }
+    },
+    "3": {
+      "open": {
+        "hour": 8,
+        "minute": 0
+      },
+      "close": {
+        "hour": 17,
+        "minute": 0
+      }
+    },
+    "4": {
+      "open": {
+        "hour": 9,
+        "minute": 48
+      },
+      "close": {
+        "hour": 18,
+        "minute": 0
+      }
+    },
+    "5": {
+      "open": {
+        "hour": 9,
+        "minute": 15
+      },
+      "close": {
+        "hour": 17,
+        "minute": 15
+      }
+    },
+    "6": {
+      "open": {
+        "hour": 1,
+        "minute": 30
+      },
+      "close": {
+        "hour": 17,
+        "minute": 45
+      }
+    }
+  },
+  "minimumNotice": 15,
+  "timeZone": "Europe/Warsaw"
+}
